@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overdue — Yellow Card Watch</title>
+<style>
+  :root {
+    --bg: #0f1216; --panel: #171b21; --panel-2: #1e242c; --line: #2a323c;
+    --text: #e7ecf2; --muted: #97a3b2; --accent: #ffd34d; --hot: #ff6b6b;
+    --chip: #232b34;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f8fb; --panel: #ffffff; --panel-2: #f0f3f7; --line: #e2e8f0;
+      --text: #121821; --muted: #5b6774; --accent: #b8860b; --hot: #c0392b;
+      --chip: #eef2f7;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 16px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header { margin-bottom: 8px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h1 .card { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 0.9rem; }
+  .meta { color: var(--muted); font-size: 0.82rem; margin: 6px 0 18px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
+  .panel h2 { font-size: 0.95rem; margin: 0 0 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  thead th { text-align: right; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); cursor: pointer; white-space: nowrap; user-select: none; }
+  thead th.l, tbody td.l { text-align: left; }
+  tbody td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  tbody tr:hover { background: var(--panel-2); }
+  .player { font-weight: 600; }
+  .chip { display: inline-block; background: var(--chip); color: var(--muted); border-radius: 999px; padding: 1px 8px; font-size: 0.75rem; }
+  .ratio { font-weight: 700; color: var(--accent); }
+  .ratio.hot { color: var(--hot); }
+  .links a { color: var(--muted); text-decoration: none; margin-left: 6px; font-size: 0.8rem; border-bottom: 1px dotted var(--muted); }
+  .links a:hover { color: var(--text); }
+  .fixtures { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fx { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 0.82rem; }
+  .fx .vs { color: var(--muted); }
+  .empty { color: var(--muted); padding: 8px 0; }
+  footer { color: var(--muted); font-size: 0.78rem; margin-top: 8px; }
+  footer p { margin: 4px 0; }
+  @media (max-width: 640px) {
+    .hide-sm { display: none; }
+    body { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Overdue <span class="card">Yellow Card</span> Watch</h1>
+    <div class="sub">Players who are due a booking and whose team plays on <strong>{{ report.target_day }}</strong>.</div>
+    <div class="meta">
+      Leagues: Premier League · La Liga · Ligue 1 &nbsp;•&nbsp;
+      {{ report.rows|length }} overdue player(s) playing today &nbsp;•&nbsp;
+      {{ report.total_scored }} players scored &nbsp;•&nbsp;
+      overdue ≥ {{ '%.1f'|format(report.threshold) }}× &nbsp;•&nbsp;
+      generated {{ report.generated_utc }}
+    </div>
+  </header>
+
+  <div class="panel">
+    <h2>Overdue today</h2>
+    {% if report.rows %}
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th class="l" data-type="str">Player</th>
+          <th class="l hide-sm" data-type="str">Team</th>
+          <th class="l hide-sm" data-type="str">Opp.</th>
+          <th class="l" data-type="str" title="Competition of today's fixture">Comp</th>
+          <th class="l" data-type="str">Lg</th>
+          <th data-type="num" title="Qualifying appearances in the baseline window">Apps</th>
+          <th data-type="num" title="Cards (yellow or red)">Cards</th>
+          <th data-type="num" title="Yellow cards per appearance">Rate</th>
+          <th data-type="num" title="Average appearances between cards">Avg gap</th>
+          <th data-type="num" title="Appearances since last yellow">Streak</th>
+          <th data-type="num" title="Streak ÷ average gap; higher = more overdue">Overdue</th>
+          <th data-type="num" title="Share of team's last 10 competitive games featured in" class="hide-sm">Start%</th>
+          <th class="l">Odds</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in report.rows %}
+        <tr>
+          <td class="l player">{{ r.player }}</td>
+          <td class="l hide-sm">{{ r.team }}</td>
+          <td class="l hide-sm">{{ r.opponent }}</td>
+          <td class="l"><span class="chip">{{ r.competition }}</span></td>
+          <td class="l"><span class="chip">{{ r.league_short }}</span></td>
+          <td>{{ r.appearances }}</td>
+          <td>{{ r.cards }}</td>
+          <td>{{ '%.2f'|format(r.rate) }}</td>
+          <td>{{ '%.1f'|format(r.expected_interval) }}</td>
+          <td>{{ r.streak }}</td>
+          <td class="ratio {% if r.overdue_ratio >= 2.0 %}hot{% endif %}" data-sort="{{ '%.4f'|format(r.overdue_ratio) }}">{{ '%.2f'|format(r.overdue_ratio) }}×</td>
+          <td class="hide-sm">{{ '%.0f'|format(r.start_share * 100) }}%</td>
+          <td class="l links">
+            <a href="{{ r.links.google }}" target="_blank" rel="noopener">search</a>
+            <a href="{{ r.links.skybet }}" target="_blank" rel="noopener">Sky</a>
+            <a href="{{ r.links.bet365 }}" target="_blank" rel="noopener">B365</a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <div class="empty">No overdue players featuring today. Check back tomorrow.</div>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Today's fixtures</h2>
+    {% if report.fixtures %}
+    <div class="fixtures">
+      {% for fx in report.fixtures %}
+        <div class="fx"><span class="chip">{{ fx.league }}</span> {{ fx.home }} <span class="vs">v</span> {{ fx.away }}</div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <div class="empty">No tracked-league fixtures scheduled today.</div>
+    {% endif %}
+  </div>
+
+  <footer>
+    <p><strong>How "overdue" is judged:</strong> each player's card rate (cards — yellow or red — per appearance they actually played) comes from the last {{ '%d'|format(baseline_seasons) }} seasons. The overdue score is how many appearances they've gone without a card, divided by their average gap between cards. 2.0× means twice their usual wait.</p>
+    <p><strong>Odds are not live.</strong> Look prices up yourself on Sky Bet / Bet365 — the links above are shortcuts.</p>
+    <p><strong>Caveat:</strong> line-ups aren't known at generation time, so this lists overdue regulars whose <em>team</em> plays today — check they actually start. "Start%" is how often they've featured this season.</p>
+  </footer>
+</div>
+
+<script>
+  // Lightweight client-side column sort.
+  (function () {
+    var tbl = document.getElementById('tbl');
+    if (!tbl) return;
+    var ths = tbl.tHead.rows[0].cells;
+    for (var i = 0; i < ths.length; i++) {
+      (function (idx) {
+        ths[idx].addEventListener('click', function () {
+          var type = ths[idx].getAttribute('data-type') || 'str';
+          var body = tbl.tBodies[0];
+          var rows = Array.prototype.slice.call(body.rows);
+          var dir = ths[idx].dataset.dir === 'asc' ? -1 : 1;
+          ths[idx].dataset.dir = dir === 1 ? 'asc' : 'desc';
+          rows.sort(function (a, b) {
+            var x = cell(a, idx, type), y = cell(b, idx, type);
+            return x < y ? -1 * dir : x > y ? 1 * dir : 0;
+          });
+          rows.forEach(function (r) { body.appendChild(r); });
+        });
+      })(i);
+    }
+    function cell(row, idx, type) {
+      var td = row.cells[idx];
+      var v = td.getAttribute('data-sort');
+      if (v === null) v = td.textContent.trim();
+      return type === 'num' ? parseFloat(v.replace(/[^0-9.\-]/g, '')) || 0 : v.toLowerCase();
+    }
+  })();
+</script>
+</body>
+</html>
